@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morpheus - Live Training Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:       #080b0f;
+    --bg2:      #0d1117;
+    --bg3:      #111820;
+    --border:   #1e2d3d;
+    --green:    #00ff88;
+    --green2:   #00cc66;
+    --amber:    #ffaa00;
+    --red:      #ff4455;
+    --blue:     #00aaff;
+    --text:     #c8d8e8;
+    --muted:    #4a6070;
+    --mono:     'JetBrains Mono', monospace;
+    --display:  'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    height: 100vh;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 52px 1fr;
+    grid-template-columns: 1fr;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 24px;
+    position: relative;
+  }
+
+  .logo {
+    font-family: var(--display);
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--green);
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 24px;
+    margin-left: auto;
+  }
+
+  .hstat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .hstat-val {
+    color: var(--green);
+    font-weight: 700;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.3s;
+  }
+
+  .hstat-val.updated {
+    color: var(--amber);
+  }
+
+  .status-badge {
+    padding: 4px 10px;
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .status-live {
+    background: rgba(0,255,136,0.1);
+    color: var(--green);
+    border: 1px solid var(--green2);
+  }
+
+  /* ── Main layout ── */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 380px 340px;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* ── Panel base ── */
+  .panel {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel:last-child { border-right: none; }
+
+  .panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg2);
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .panel-badge {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  /* ── Chat panel ── */
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .message {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .message-meta {
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .message-role {
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .role-user { color: var(--blue); }
+  .role-model { color: var(--green); }
+
+  .message-body {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 14px;
+    line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .message-body.user-body {
+    border-color: rgba(0,170,255,0.2);
+    background: rgba(0,170,255,0.04);
+  }
+
+  .score-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .score-low  { background: rgba(255,68,85,0.15);   color: var(--red);   border: 1px solid rgba(255,68,85,0.3); }
+  .score-mid  { background: rgba(255,170,0,0.15);   color: var(--amber); border: 1px solid rgba(255,170,0,0.3); }
+  .score-high { background: rgba(0,255,136,0.15);   color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+
+  .thinking {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 11px;
+    padding: 8px 0;
+  }
+
+  .thinking-dots span {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: dot 1.2s ease-in-out infinite;
+  }
+
+  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes dot {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  .chat-input-area {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg2);
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .chat-input {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    resize: none;
+    height: 42px;
+  }
+
+  .chat-input:focus { border-color: var(--green); }
+
+  .send-btn {
+    background: var(--green);
+    color: var(--bg);
+    border: none;
+    border-radius: 4px;
+    padding: 0 16px;
+    font-family: var(--display);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    white-space: nowrap;
+  }
+
+  .send-btn:hover { background: var(--green2); }
+  .send-btn:active { transform: scale(0.97); }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Metrics panel ── */
+  .metrics-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .metric-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .metric-card {
+    background: var(--bg2);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .metric-label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .metric-value {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    color: var(--green);
+    transition: color 0.3s;
+  }
+
+  .metric-value.amber { color: var(--amber); }
+  .metric-value.blue  { color: var(--blue); }
+  .metric-value.red   { color: var(--red); }
+
+  .metric-sub {
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .chart-wrap {
+    flex: 1;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .chart-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  canvas {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Training log */
+  .training-log {
+    border-top: 1px solid var(--border);
+    padding: 10px 16px;
+    flex-shrink: 0;
+    max-height: 120px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .log-entry {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.8;
+    display: flex;
+    gap: 8px;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .log-time { color: var(--muted); flex-shrink: 0; }
+  .log-msg  { color: var(--text); }
+  .log-green { color: var(--green); }
+  .log-amber { color: var(--amber); }
+
+  /* ── Comparison panel ── */
+  .comparison-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .comparison-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .comp-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .comp-box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 80px;
+  }
+
+  .comp-box.before { border-color: rgba(255,68,85,0.25); }
+  .comp-box.after  { border-color: rgba(0,255,136,0.25); }
+
+  .comp-score-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .comp-divider {
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    padding: 4px 0;
+  }
+
+  .quick-questions {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg2);
+    flex-shrink: 0;
+  }
+
+  .quick-label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .quick-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .quick-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 6px 10px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s, background 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .quick-btn:hover {
+    border-color: var(--green);
+    background: rgba(0,255,136,0.05);
+    color: var(--green);
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Adapter version flash */
+  @keyframes versionFlash {
+    0% { color: var(--amber); transform: scale(1.1); }
+    100% { color: var(--green); transform: scale(1); }
+  }
+
+  .version-flash { animation: versionFlash 0.6s ease forwards; }
+
+  /* Empty state */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 8px;
+    color: var(--muted);
+  }
+
+  .empty-icon { font-size: 32px; opacity: 0.3; }
+  .empty-text { font-size: 11px; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    MORPHEUS
+  </div>
+  <span class="status-badge status-live">LIVE</span>
+  <div class="header-stats">
+    <div class="hstat">
+      <span>ADAPTER</span>
+      <span class="hstat-val" id="h-adapter">v0</span>
+    </div>
+    <div class="hstat">
+      <span>TURNS</span>
+      <span class="hstat-val" id="h-turns">0</span>
+    </div>
+    <div class="hstat">
+      <span>TRAINED</span>
+      <span class="hstat-val" id="h-trained">0</span>
+    </div>
+    <div class="hstat">
+      <span>LAST LOSS</span>
+      <span class="hstat-val" id="h-loss">—</span>
+    </div>
+  </div>
+</header>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Panel 1: Chat -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Conversation</div>
+      <span class="panel-badge" id="turn-badge" style="background:rgba(0,170,255,0.1);color:var(--blue);border:1px solid rgba(0,170,255,0.2);">TURN 0</span>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="empty-state">
+        <div class="empty-icon">◈</div>
+        <div class="empty-text">START A CONVERSATION</div>
+        <div class="empty-text" style="font-size:10px;opacity:0.5">THE MODEL WILL LEARN AS YOU TALK</div>
+      </div>
+    </div>
+    <div class="chat-input-area">
+      <textarea
+        class="chat-input"
+        id="chat-input"
+        placeholder="Ask anything..."
+        rows="1"
+        onkeydown="handleKey(event)"
+      ></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendMessage()">SEND &#8594;</button>
+    </div>
+  </div>
+
+  <!-- Panel 2: Metrics -->
+  <div class="panel metrics-panel">
+    <div class="panel-header">
+      <div class="panel-title">Training Metrics</div>
+      <span class="panel-badge" id="queue-badge" style="background:rgba(255,170,0,0.1);color:var(--amber);border:1px solid rgba(255,170,0,0.2);">QUEUE 0</span>
+    </div>
+
+    <div class="metric-cards">
+      <div class="metric-card">
+        <div class="metric-label">Adapter Version</div>
+        <div class="metric-value" id="m-adapter">0</div>
+        <div class="metric-sub">LoRA updates applied</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Pairs Trained</div>
+        <div class="metric-value amber" id="m-trained">0</div>
+        <div class="metric-sub">unique questions</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Latest Loss</div>
+        <div class="metric-value blue" id="m-loss">-</div>
+        <div class="metric-sub">cross entropy</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Conversation</div>
+        <div class="metric-value" id="m-turns">0</div>
+        <div class="metric-sub">turns completed</div>
+      </div>
+    </div>
+
+    <div class="chart-wrap">
+      <div class="chart-label">Loss Curve — Training Signal Over Time</div>
+      <canvas id="lossChart"></canvas>
+    </div>
+
+    <div class="training-log" id="training-log">
+      <div class="log-entry">
+        <span class="log-time">00:00</span>
+        <span class="log-msg">System initialized. Waiting for conversation...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 3: Before/After -->
+  <div class="panel comparison-panel">
+    <div class="panel-header">
+      <div class="panel-title">Before / After</div>
+      <span class="panel-badge" style="background:rgba(0,255,136,0.1);color:var(--green);border:1px solid rgba(0,255,136,0.2);">LEARNING PROOF</span>
+    </div>
+
+    <div class="comparison-body" id="comparison-body">
+      <div class="empty-state">
+        <div class="empty-icon">⟳</div>
+        <div class="empty-text">ASK THE SAME QUESTION</div>
+        <div class="empty-text" style="font-size:10px;opacity:0.5">COMPARISON APPEARS AFTER TRAINING</div>
+      </div>
+    </div>
+
+    <div class="quick-questions">
+      <div class="quick-label">Quick Benchmark Questions</div>
+      <div class="quick-btns">
+        <button class="quick-btn" onclick="quickSend('What is the difference between supervised and unsupervised learning?')">Supervised vs unsupervised learning</button>
+        <button class="quick-btn" onclick="quickSend('How does gradient descent work in neural networks?')">How gradient descent works</button>
+        <button class="quick-btn" onclick="quickSend('What is overfitting and how do you prevent it?')">Overfitting and prevention</button>
+        <button class="quick-btn" onclick="quickSend('What is the vanishing gradient problem?')">Vanishing gradient problem</button>
+        <button class="quick-btn" onclick="quickSend('What is attention mechanism in transformers?')">Attention mechanism</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+
+// ── Chart setup ──────────────────────────────────────────
+const ctx = document.getElementById('lossChart').getContext('2d');
+const lossChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [{
+      label: 'Loss',
+      data: [],
+      borderColor: '#00ff88',
+      backgroundColor: 'rgba(0,255,136,0.06)',
+      borderWidth: 2,
+      pointRadius: 4,
+      pointBackgroundColor: '#00ff88',
+      pointBorderColor: '#080b0f',
+      pointBorderWidth: 2,
+      tension: 0.3,
+      fill: true,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 400 },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0d1117',
+        borderColor: '#1e2d3d',
+        borderWidth: 1,
+        titleColor: '#4a6070',
+        bodyColor: '#00ff88',
+        titleFont: { family: 'JetBrains Mono', size: 10 },
+        bodyFont: { family: 'JetBrains Mono', size: 13, weight: '700' },
+        callbacks: {
+          title: (items) => `TRAINING STEP ${items[0].dataIndex + 1}`,
+          label: (item) => `  LOSS  ${item.parsed.y.toFixed(4)}`,
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: '#1e2d3d', lineWidth: 0.5 },
+        ticks: { color: '#4a6070', font: { family: 'JetBrains Mono', size: 9 } },
+        border: { color: '#1e2d3d' },
+      },
+      y: {
+        grid: { color: '#1e2d3d', lineWidth: 0.5 },
+        ticks: { color: '#4a6070', font: { family: 'JetBrains Mono', size: 9 }, precision: 3 },
+        border: { color: '#1e2d3d' },
+      }
+    }
+  }
+});
+
+// ── State ─────────────────────────────────────────────────
+let prevAdapterVersion = 0;
+let prevLossLen = 0;
+let startTime = Date.now();
+let answerLog = {};
+
+function elapsed() {
+  const s = Math.floor((Date.now() - startTime) / 1000);
+  const m = Math.floor(s / 60).toString().padStart(2,'0');
+  const sec = (s % 60).toString().padStart(2,'0');
+  return `${m}:${sec}`;
+}
+
+// ── Metrics polling ───────────────────────────────────────
+async function pollMetrics() {
+  try {
+    const res  = await fetch(`${API}/metrics`);
+    const data = await res.json();
+
+    const loss    = data.loss_history;
+    const adapter = data.adapter_version;
+    const turns   = data.turn_count;
+    const trained = data.total_trained;
+    const queue   = data.queue_size;
+    const lastLoss = loss.length > 0 ? loss[loss.length - 1].toFixed(4) : '-';
+
+    // Header stats
+    document.getElementById('h-adapter').textContent = `v${adapter}`;
+    document.getElementById('h-turns').textContent   = turns;
+    document.getElementById('h-trained').textContent = trained;
+    document.getElementById('h-loss').textContent    = lastLoss;
+
+    // Metric cards
+    document.getElementById('m-adapter').textContent = adapter;
+    document.getElementById('m-trained').textContent = trained;
+    document.getElementById('m-loss').textContent    = lastLoss === '—' ? '—' : lastLoss;
+    document.getElementById('m-turns').textContent   = turns;
+    document.getElementById('turn-badge').textContent = `TURN ${turns}`;
+    document.getElementById('queue-badge').textContent = `QUEUE ${queue}`;
+
+    // Adapter version flash
+    if (adapter > prevAdapterVersion) {
+      const el = document.getElementById('m-adapter');
+      el.classList.remove('version-flash');
+      void el.offsetWidth;
+      el.classList.add('version-flash');
+      addLog(`Adapter updated → v${adapter} | loss: ${lastLoss}`, 'green');
+      prevAdapterVersion = adapter;
+    }
+
+    // Update chart
+    if (loss.length > prevLossLen) {
+      lossChart.data.labels  = loss.map((_, i) => `v${i+1}`);
+      lossChart.data.datasets[0].data = loss;
+      lossChart.update();
+      prevLossLen = loss.length;
+    }
+
+  } catch(e) {
+    // Server not ready yet
+  }
+}
+
+setInterval(pollMetrics, 2000);
+pollMetrics();
+
+// ── Log ───────────────────────────────────────────────────
+function addLog(msg, type = 'default') {
+  const log  = document.getElementById('training-log');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  const cls = type === 'green' ? 'log-green' : type === 'amber' ? 'log-amber' : 'log-msg';
+  entry.innerHTML = `<span class="log-time">${elapsed()}</span><span class="${cls}">${msg}</span>`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ── Chat ──────────────────────────────────────────────────
+let isThinking = false;
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function quickSend(q) {
+  document.getElementById('chat-input').value = q;
+  sendMessage();
+}
+
+async function sendMessage() {
+  if (isThinking) return;
+  const input   = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if (!message) return;
+
+  input.value = '';
+  isThinking  = true;
+  document.getElementById('send-btn').disabled = true;
+
+  const msgs = document.getElementById('chat-messages');
+
+  // Clear empty state
+  const empty = msgs.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  // User message
+  const userMsg = document.createElement('div');
+  userMsg.className = 'message';
+  userMsg.innerHTML = `
+    <div class="message-meta">
+      <span class="message-role role-user">YOU</span>
+    </div>
+    <div class="message-body user-body">${escHtml(message)}</div>
+  `;
+  msgs.appendChild(userMsg);
+
+  // Thinking indicator
+  const thinking = document.createElement('div');
+  thinking.className = 'thinking';
+  thinking.innerHTML = `
+    <span style="color:var(--green);font-size:10px;letter-spacing:1px;">MORPHEUS</span>
+    <div class="thinking-dots">
+      <span></span><span></span><span></span>
+    </div>
+    <span>generating...</span>
+  `;
+  msgs.appendChild(thinking);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  addLog(`Turn ${document.getElementById('h-turns').textContent} — querying model...`, 'amber');
+
+  try {
+    const res  = await fetch(`${API}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    const data = await res.json();
+
+    // Store answer
+    if (!answerLog[message]) {
+      answerLog[message] = { first: data.answer, firstTurn: data.turn };
+    }
+    answerLog[message].latest     = data.answer;
+    answerLog[message].latestTurn = data.turn;
+
+    // Remove thinking
+    thinking.remove();
+
+    // Model message
+    const modelMsg = document.createElement('div');
+    modelMsg.className = 'message';
+    modelMsg.innerHTML = `
+      <div class="message-meta">
+        <span class="message-role role-model">MORPHEUS</span>
+        <span style="color:var(--muted)">v${data.adapter_version} · turn ${data.turn}</span>
+      </div>
+      <div class="message-body">${escHtml(data.answer)}</div>
+    `;
+    msgs.appendChild(modelMsg);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    addLog(`Response generated · adapter v${data.adapter_version}`, 'default');
+
+    // Update comparison panel
+    updateComparison(message);
+
+  } catch(e) {
+    thinking.remove();
+    addLog('Error connecting to server. Is it running?', 'amber');
+  }
+
+  isThinking = false;
+  document.getElementById('send-btn').disabled = false;
+  input.focus();
+}
+
+// ── Comparison panel ─────────────────────────────────────
+function updateComparison(question) {
+  const log = answerLog[question];
+  if (!log) return;
+
+  const body = document.getElementById('comparison-body');
+
+  // Find or create section for this question
+  let section = body.querySelector(`[data-question="${CSS.escape(question)}"]`);
+  if (!section) {
+    // Clear empty state
+    const empty = body.querySelector('.empty-state');
+    if (empty) empty.remove();
+
+    section = document.createElement('div');
+    section.setAttribute('data-question', question);
+    section.innerHTML = `
+      <div class="comp-label">${escHtml(question.length > 60 ? question.slice(0,60)+'...' : question)}</div>
+      <div class="comp-score-row">
+        <span style="font-size:9px;letter-spacing:1px;color:var(--muted);">TURN ${log.firstTurn || 1}</span>
+        <span class="score-badge score-low">BEFORE</span>
+      </div>
+      <div class="comp-box before" ...>${escHtml(log.first)}</div>
+      <div class="comp-divider">↓ after training ↓</div>
+      <div class="comp-score-row">
+        <span style="font-size:9px;letter-spacing:1px;color:var(--muted);">TURN ${log.latestTurn || 1}</span>
+        <span class="score-badge score-high">AFTER</span>
+      </div>
+      <div class="comp-box after" id="after-${sanitizeId(question)}">${escHtml(log.latest)}</div>
+    `;
+    body.prepend(section);
+  } else {
+    // Update after box
+    const afterBox = document.getElementById(`after-${sanitizeId(question)}`);
+    if (afterBox) afterBox.textContent = log.latest;
+    // Update turn
+    const rows = section.querySelectorAll('.comp-score-row span:first-child');
+    if (rows[1]) rows[1].textContent = `TURN ${log.latestTurn}`;
+  }
+
+  body.scrollTop = 0;
+}
+
+
+
+// ── Utils ─────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function sanitizeId(str) {
+  return str.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40);
+}
+</script>
+</body>
+</html>

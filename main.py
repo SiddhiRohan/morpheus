@@ -58,7 +58,18 @@ def load_model():
 
 
 def generate_response(question: str) -> str:
-    messages = [{"role": "user", "content": question}]
+    messages = [
+    {
+        "role": "system",
+        "content": (
+            "You are a precise AI assistant. Answer every question in exactly 3-4 sentences. "
+            "Be complete and accurate. Never use bullet points or headers. "
+            "Write in plain prose only. Always finish your last sentence completely. "
+            "Maximum 120 words per response."
+        )
+    },
+    {"role": "user", "content": question}
+]
     text = tokenizer.apply_chat_template(
         messages,
         tokenize              = False,
@@ -80,7 +91,7 @@ def generate_response(question: str) -> str:
             outputs = model.generate(
                 input_ids          = input_ids,
                 attention_mask     = attention_mask,
-                max_new_tokens     = 200,
+                max_new_tokens     = 300,
                 do_sample          = False,
                 pad_token_id       = tokenizer.eos_token_id,
                 repetition_penalty = 1.15,

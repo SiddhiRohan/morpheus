@@ -53,7 +53,13 @@ class MorpheusTrainer:
         os.makedirs(LOG_DIR, exist_ok=True)
 
     def _tokenize(self, prompt: str, ideal_answer: str):
-        formatted = f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n{ideal_answer}<|im_end|>"
+        formatted = (
+            f"<|im_start|>system\nYou are a concise AI assistant. Answer questions accurately "
+            f"and completely in 3-4 short paragraphs maximum. Never cut off mid-sentence. "
+            f"Always finish your answer completely within your response.<|im_end|>\n"
+            f"<|im_start|>user\n{prompt}<|im_end|>\n"
+            f"<|im_start|>assistant\n{ideal_answer}<|im_end|>"
+        )
         encodings = self.tokenizer(
             formatted,
             truncation     = True,
