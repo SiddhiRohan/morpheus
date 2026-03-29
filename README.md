@@ -30,7 +30,7 @@
 
 Every AI system you have ever used is **frozen**.
 
-ChatGPT. Claude. Gemini. Llama. The moment these models finish training, they stop learning. You can give them memory — they remember what you said. You can give them retrieval — they look things up. But the underlying model, the billions of parameters that determine *how it reasons*, never change while you talk to it.
+ChatGPT. Claude. Gemini. Llama. The moment these models finish training, they stop learning. You can give them memory, they remember what you said. You can give them retrieval, they look things up. But the underlying model, the billions of parameters that determine *how it reasons*, never change while you talk to it.
 
 This means every AI system in the world has a fundamental ceiling. It can retrieve. It can remember. But it cannot **learn**.
 
@@ -40,7 +40,7 @@ This means every AI system in the world has a fundamental ceiling. It can retrie
 
 ## What Morpheus Does
 
-Morpheus is a multi-agent pipeline where a local LLM updates its own LoRA adapter weights **in real time**, turn by turn, during a live conversation. Claude API acts as an automated critic — evaluating every response, generating a better answer, and feeding it to a training loop running concurrently on the same GPU.
+Morpheus is a multi-agent pipeline where a local LLM updates its own LoRA adapter weights **in real time**, turn by turn, during a live conversation. Claude API acts as an automated critic, evaluating every response, generating a better answer, and feeding it to a training loop running concurrently on the same GPU.
 
 The model at the end of a Morpheus conversation is not the same model that started it.
 
@@ -127,7 +127,7 @@ Turn 5  →  Model answers  →  Score: 8/10  →  Skipped  →  (already good)
 
 ### Why This Architecture Is Novel
 
-The hard engineering problem is not any single component — it is running **inference and training simultaneously on the same GPU** without memory collisions or inference interruption.
+The hard engineering problem is not any single component, it is running **inference and training simultaneously on the same GPU** without memory collisions or inference interruption.
 
 | Challenge | Solution |
 |---|---|
@@ -161,9 +161,9 @@ The deliberate separation matters: the local model is **fast and trainable but l
 
 ### Fine-Tuning: LoRA (Low-Rank Adaptation)
 
-LoRA adds small trainable matrices (rank 16) to the attention and MLP layers — about 0.96% of total parameters. This means:
+LoRA adds small trainable matrices (rank 16) to the attention and MLP layers, about 0.96% of total parameters. This means:
 
-- Base model weights never change — no catastrophic forgetting
+- Base model weights never change, no catastrophic forgetting
 - Adapter weights are small enough to update in 2 seconds on consumer hardware
 - Adapters can be saved and swapped without reloading the full model
 
@@ -188,7 +188,7 @@ LoRA adds small trainable matrices (rank 16) to the attention and MLP layers —
 - NVIDIA GPU with **6GB+ VRAM** (tested on RTX 3060 Laptop)
 - **CUDA 11.8+**
 - **Python 3.11**
-- An **Anthropic API key** — get one at [console.anthropic.com](https://console.anthropic.com)
+- An **Anthropic API key** : get one at [console.anthropic.com](https://console.anthropic.com)
 
 ---
 
@@ -299,16 +299,16 @@ The dashboard has three panels:
 ## How Each Component Works
 
 ### Critic Agent (`agents/critic.py`)
-Sends every (question, answer) pair to Claude Sonnet with a strict JSON schema. Returns `score`, `what_was_wrong`, and `ideal_answer`. The ideal answer is capped at 120 words — short enough to be a reachable training target for a 3B model generating 200 tokens.
+Sends every (question, answer) pair to Claude Sonnet with a strict JSON schema. Returns `score`, `what_was_wrong`, and `ideal_answer`. The ideal answer is capped at 120 words, short enough to be a reachable training target for a 3B model generating 200 tokens.
 
 ### Curator (`agents/curator.py`)
-Maintains a `deque` of training pairs with a per-question blacklist (`trained_questions: set`). Once a question is trained on, it is permanently skipped — preventing the weight collapse that happens when a model memorizes one example over and over.
+Maintains a `deque` of training pairs with a per-question blacklist (`trained_questions: set`). Once a question is trained on, it is permanently skipped, preventing the weight collapse that happens when a model memorizes one example over and over.
 
 ### Trainer (`training/trainer.py`)
 Uses HuggingFace `Trainer` with `batch_size=1` and `max_steps=2`. Runs in a `threading.Thread`. Acquires `swap_lock` before training so inference cannot read weights during an update. Saves each adapter version to `model/adapter/vN/`. Patches Unsloth's custom cross-entropy loss with standard PyTorch to avoid Triton kernel failures on Windows.
 
 ### Server (`api/server.py`)
-Three endpoints: `POST /chat` triggers inference and returns the answer with current adapter version. `GET /metrics` returns loss history, adapter version, queue size, and turn count — polled every 2 seconds by the dashboard. `GET /comparison` returns before/after answers for any question.
+Three endpoints: `POST /chat` triggers inference and returns the answer with current adapter version. `GET /metrics` returns loss history, adapter version, queue size, and turn count, polled every 2 seconds by the dashboard. `GET /comparison` returns before/after answers for any question.
 
 ---
 
