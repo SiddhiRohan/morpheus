@@ -65,20 +65,20 @@ Turn 5  →  Model answers  →  Score: 8/10  →  Skipped  →  (already good)
       │
       ▼
 ┌─────────────┐
-│ Orchestrator │  main.py — routes messages, manages state, owns locks
+│ Orchestrator│  main.py — routes messages, manages state, owns locks
 └──────┬──────┘
        │
        ▼
 ┌─────────────────────────────────────────────────────┐
-│                  LOCAL MODEL LAYER                   │
+│                  LOCAL MODEL LAYER                  │
 │                                                     │
-│   ┌───────────────────────────────────────────┐    │
-│   │  Qwen 2.5-3B  (4-bit NF4 quantized)       │    │
-│   │  Base weights: FROZEN                     │    │
-│   │                          +                │    │
-│   │  LoRA Adapters  (r=16, 0.96% of params)  │    │
-│   │  Adapter weights: TRAINABLE               │    │
-│   └───────────────────────────────────────────┘    │
+│   ┌───────────────────────────────────────────┐     │
+│   │  Qwen 2.5-3B  (4-bit NF4 quantized)       │     │
+│   │  Base weights: FROZEN                     │     │
+│   │                          +                │     │
+│   │  LoRA Adapters  (r=16, 0.96% of params)   │     │
+│   │  Adapter weights: TRAINABLE               │     │
+│   └───────────────────────────────────────────┘     │
 │                     │                               │
 │              Generates response                     │
 └─────────────────────┼───────────────────────────────┘
@@ -87,20 +87,20 @@ Turn 5  →  Model answers  →  Score: 8/10  →  Skipped  →  (already good)
           │                          │
           ▼                          ▼
    Response to User          ┌───────────────┐
-                             │  CRITIC AGENT  │
+                             │  CRITIC AGENT │
                              │               │
-                             │  Claude Sonnet │
-                             │  via API       │
+                             │  Claude Sonnet│
+                             │  via API      │
                              │               │
-                             │  Returns:      │
-                             │  • Score 0-10  │
-                             │  • What wrong  │
+                             │  Returns:     │
+                             │  • Score 0-10 │
+                             │  • What wrong │
                              │  • Ideal answer│
                              └───────┬───────┘
                                      │
                                      ▼
                              ┌───────────────┐
-                             │    CURATOR     │
+                             │    CURATOR    │
                              │               │
                              │  • Score < 8? │
                              │  • First time?│
@@ -109,7 +109,7 @@ Turn 5  →  Model answers  →  Score: 8/10  →  Skipped  →  (already good)
                                      │
                                      ▼
                     ┌────────────────────────────────┐
-                    │         TRAINER (async)         │
+                    │         TRAINER (async)        │
                     │                                │
                     │  Background thread             │
                     │  Acquires swap_lock            │
