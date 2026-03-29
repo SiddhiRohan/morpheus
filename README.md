@@ -14,13 +14,19 @@ The model at the end of a Morpheus conversation is not the same model that start
 
 ---
 
-## Core Innovation
+## How It Works
 
-- **Concurrent inference and training** on a single consumer GPU
-- **Claude as the critic** — generates training signal automatically, no human labeling required
-- **LoRA hot-swap** — adapter weights update between turns without reloading the model
-- **Live loss curve** — training is visible and measurable in real time
-- **Curator blacklist** — each question trained on exactly once, prevents overfitting collapse
+### Critic Agent
+Every response is evaluated by Claude. It returns a score 0–10, what was wrong, and an ideal answer in structured JSON. Responses scoring below the threshold are queued for training.
+
+### Curator
+Maintains a queue of training pairs. Each unique question is trained on exactly once — preventing the model from collapsing by memorizing a single example.
+
+### Training Loop
+Runs in a background thread. Acquires a lock, runs gradient steps of LoRA fine-tuning, saves the updated adapter, releases the lock. Each update takes under 2 seconds on a consumer GPU.
+
+### Dashboard
+A live web interface showing the conversation, loss curve updating in real time, adapter version counter, and a before/after comparison panel showing the model improved.
 
 ---
 
@@ -30,7 +36,7 @@ User message
      ↓
 Orchestrator (main.py)
      ↓
-Local LLM generates response (Qwen 2.5-3B, 4-bit)
+Local LLM generates response (Qwen 2.5-3B, 4-bit quantized)
      ↓
 Critic Agent (Claude Sonnet) scores response 0-10
      ↓
@@ -63,6 +69,7 @@ Next turn uses updated model
 - NVIDIA GPU with 6GB+ VRAM
 - CUDA 11.8+
 - Python 3.11
+- An Anthropic API key
 
 ---
 
@@ -84,44 +91,134 @@ morpheus/
 
 ---
 
-## Setup
+## Getting Started
+
+### 1. Clone the repository
 ```bash
 git clone https://github.com/SiddhiRohan/morpheus.git
 cd morpheus
-
-python -m venv venv
-source venv/Scripts/activate
-
-pip install --upgrade pip setuptools wheel
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.41.1-py3-none-win_amd64.whl
-pip install "unsloth[cu118-torch260] @ git+https://github.com/unslothai/unsloth.git"
-pip install transformers peft trl accelerate anthropic fastapi uvicorn python-dotenv numpy datasets
-
-echo "ANTHROPIC_API_KEY=your-key-here" > .env
 ```
 
----
+### 2. Create a virtual environment
+```bash
+python -m venv venv
 
-## Running
+# Windows
+source venv/Scripts/activate
+
+# Linux / Mac
+source venv/bin/activate
+```
+
+### 3. Install dependencies
+
+Run each block in order and wait for each to complete before the next.
+```bash
+pip install --upgrade pip setuptools wheel
+```
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+```
+```bash
+# Windows only — skip this on Linux/Mac and use standard bitsandbytes instead
+pip install https://github.com/jllllll/bitsandbytes-windows-webui/releases/download/wheels/bitsandbytes-0.41.1-py3-none-win_amd64.whl
+```
+```bash
+pip install "unsloth[cu118-torch260] @ git+https://github.com/unslothai/unsloth.git"
+```
+```bash
+pip install transformers peft trl accelerate anthropic fastapi uvicorn python-dotenv numpy datasets
+```
+
+### 4. Add your API key
+
+Create a `.env` file in the project root:
+```
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
+```
+
+You can get an API key at [console.anthropic.com](https://console.anthropic.com).
+
+### 5. Run the server
 ```bash
 uvicorn api.server:app --host 0.0.0.0 --port 8000
 ```
 
-Open `http://localhost:8000` in your browser.
+Wait for `Application startup complete` in the terminal, then open your browser at:
+```
+http://localhost:8000
+```
 
 ---
 
-## How It Works
+## Usage
 
-### Critic Agent
-Every response is evaluated by Claude. It returns a score 0-10, what was wrong, and the ideal answer in structured JSON. Responses scoring below the threshold are queued for training.
+Once the dashboard is open:
 
-### Curator
-Maintains a queue of training pairs. Each unique question is trained on exactly once — preventing the model from collapsing by memorizing a single example.
+- Type any question in the chat input and press Enter or click Send
+- Watch the loss curve in the center panel update as the model trains
+- The adapter version counter increments with every training cycle
+- Ask the same question again after several turns — the Before/After panel shows the improvement
 
-### Training Loop
-Runs in a background thread. Acquires a lock, runs gradient steps of LoRA fine-tuning, saves the updated adapter, releases the lock. Each update takes under 2 seconds on a consumer GPU.
+---
 
-### Dashboard
-A live web interface showing the conversation, loss curve updating in real time, adapter version counter, and a before/after comparison panel proving the model improved.
+## Contributing
+
+Contributions are welcome. Here is how to get started:
+
+### Reporting issues
+
+If you find a bug or unexpected behavior, open an issue on GitHub with:
+- Your OS, GPU model, and VRAM
+- CUDA version (`nvcc --version`)
+- The exact error message and which file it came from
+- Steps to reproduce
+
+### Making changes
+```bash
+# 1. Fork the repository on GitHub
+
+# 2. Clone your fork
+git clone https://github.com/your-username/morpheus.git
+cd morpheus
+
+# 3. Create a branch for your change
+git checkout -b feat/your-feature-name
+
+# 4. Make your changes and test them
+
+# 5. Commit with a descriptive message
+git commit -m "feat: description of what you changed"
+
+# 6. Push to your fork
+git push origin feat/your-feature-name
+
+# 7. Open a pull request on GitHub
+```
+
+### Areas open for contribution
+
+- **New model support** — adding support for Llama, Mistral, or other architectures
+- **Smarter critic prompts** — improving the quality of Claude's training signal
+- **Training strategies** — experimenting with different LoRA ranks, learning rates, or optimizers
+- **UI improvements** — enhancing the dashboard with new visualizations
+- **Linux/Mac support** — testing and documenting the setup on non-Windows systems
+- **Performance** — reducing training latency or improving inference speed
+
+### Code style
+
+- Keep functions small and single-purpose
+- Add a comment explaining why, not just what
+- Test your change end to end before submitting
+
+---
+
+## License
+
+MIT
+
+---
+
+## Acknowledgements
+
+Built with [Unsloth](https://github.com/unslothai/unsloth), [Claude API](https://anthropic.com), [HuggingFace Transformers](https://huggingface.co/transformers), and [FastAPI](https://fastapi.tiangolo.com).
