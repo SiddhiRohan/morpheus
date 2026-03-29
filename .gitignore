@@ -1,0 +1,33 @@
+# Virtual environment
+venv/
+
+# Model weights and adapters
+model/
+
+# Environment variables
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Unsloth compiled cache
+unsloth_compiled_cache/
+
+# Logs
+logs/
+
+# Temp files
+temp.py
+
+# Test files
+test_critic.py
+test_curator.py
+test_loop.py
+load_model.py
+
+# OS
+.DS_Store
+Thumbs.db
