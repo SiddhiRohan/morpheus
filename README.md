@@ -21,7 +21,7 @@
 </div>
 
 <div align="center">
-  <img src="assets/dashboard.jpg" alt="Morpheus Live Dashboard" width="900"/>
+  <img src="assets/dashboard.JPG" alt="Morpheus Live Dashboard" width="900"/>
 </div>
 
 ---
